@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import javax.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -82,7 +83,7 @@ class BankAccountServiceTest {
     }
 
     @Test
-    void testTransfer() {
+    void testTransferWhenValidAccountsThenTransferFunds() {
         AccountDTO accountDTO1 = AccountDTO.builder()
                 .name("Ivan")
                 .pinCode(123)
@@ -98,13 +99,45 @@ class BankAccountServiceTest {
                 .pinCode(123)
                 .amount(100.00)
                 .build();
-        BankAccountDTO depositResult = bankAccountService.deposit(depositDTO);
+        bankAccountService.deposit(depositDTO);
         TransferDTO transferDTO = TransferDTO.builder()
                 .amount(50.00)
-                .sourсeAccountNumber(depositResult.getAccountNumber())
+                .sourсeAccountNumber(bankAccountDTO1.getAccountNumber())
                 .targetAccountNumber(bankAccountDTO2.getAccountNumber())
+                .pinCode(123)
                 .build();
-        BankAccountDTO bankAccountDTO = bankAccountService.transfer(transferDTO);
-        Assertions.assertEquals(50.00, bankAccountDTO.getBalance());
+        BankAccountDTO result = bankAccountService.transfer(transferDTO);
+        Assertions.assertEquals(50.00, result.getBalance());
+    }
+
+    @Test
+    void testTransferWhenInvalidSourceAccountThenThrowException() {
+        AccountDTO accountDTO = AccountDTO.builder()
+                .name("Ivan")
+                .pinCode(123)
+                .build();
+        BankAccountDTO bankAccountDTO = bankAccountService.create(accountDTO);
+        TransferDTO transferDTO = TransferDTO.builder()
+                .amount(50.00)
+                .sourсeAccountNumber(999999L)
+                .targetAccountNumber(bankAccountDTO.getAccountNumber())
+                .pinCode(123)
+                .build();
+        assertThrows(EntityNotFoundException.class, () -> bankAccountService.transfer(transferDTO));
+    }
+
+    @Test
+    void testTransferWhenInvalidTargetAccountThenThrowException() {
+        AccountDTO accountDTO = AccountDTO.builder()
+                .name("Ivan")
+                .pinCode(123)
+                .build();
+        BankAccountDTO bankAccountDTO = bankAccountService.create(accountDTO);
+        TransferDTO transferDTO = TransferDTO.builder()
+                .amount(50.00).sourсeAccountNumber(bankAccountDTO.getAccountNumber())
+                .targetAccountNumber(999999L)
+                .pinCode(123)
+                .build();
+        assertThrows(EntityNotFoundException.class, () -> bankAccountService.transfer(transferDTO));
     }
 }
